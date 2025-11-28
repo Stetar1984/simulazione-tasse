@@ -1,78 +1,183 @@
+Certamente. Ho riscritto il codice espandendo tutti i campi per rispecchiare fedelmente ogni singola riga del tuo file Excel.
+
+Ora troverai le caselle specifiche per le Addizionali (Regionale/Comunale), la distinzione tra IVA a debito e credito, e le Detrazioni specifiche (Oneri diversi e Detrazione lavoro autonomo).
+
+Cosa devi fare:
+Vai su GitHub nel tuo file streamlit_app.py.
+
+Clicca l'icona della matita (Edit) in alto a destra.
+
+Cancella tutto il vecchio codice e incolla questo nuovo.
+
+Clicca Commit changes.
+
+Ecco il codice completo e dettagliato:
+
+Python
+
 import streamlit as st
 
-# Titolo della pagina
-st.title("Calcolatore Convenienza Fiscale 🇮🇹")
-st.subheader("Confronto Ordinario vs Forfettario (Parrucchieri)")
+# Configurazione pagina
+st.set_page_config(page_title="Simulazione Fiscale Dettagliata", layout="wide")
 
-# --- COLONNA LATERALE PER GLI INPUT ---
+st.title("📊 Simulatore Fiscale: Ordinario vs Forfettario")
+st.markdown("Replicazione fedele del file Excel per Parrucchieri (ATECO 96.02.01)")
+
+# ==============================================================================
+# 1. COLONNA LATERALE - INSERIMENTO DATI (Come nel file Excel)
+# ==============================================================================
 with st.sidebar:
-    st.header("1. Inserisci i tuoi dati")
-    ricavi_netti = st.number_input("Ricavi/Compensi (senza IVA)", value=33616)
-    costi_reali = st.number_input("Costi/Spese Reali", value=19076)
-    iva_incassata = st.number_input("IVA Incassata dai clienti", value=7395)
-    iva_acquisti = st.number_input("IVA pagata sugli acquisti", value=2600)
+    st.header("1. Dati Attività (Vedi Colonna A e B)")
+    ricavi_compensi = st.number_input("Ricavi / Compensi (A)", value=33616, step=100)
+    costi_spese = st.number_input("Costi / Spese (B)", value=19076, step=100)
     
-    st.header("2. Dati Personali")
-    altre_detrazioni = st.number_input("Totale Detrazioni (Spese mediche, figli, ecc.)", value=2635)
+    st.header("2. Dati IVA (Fondamentali)")
+    iva_a_debito = st.number_input("IVA a debito (Incassata dai clienti)", value=7395, step=50, help="L'IVA che hai aggiunto agli scontrini")
+    iva_a_credito = st.number_input("IVA a credito (Sugli acquisti)", value=2600, step=50, help="L'IVA che hai pagato ai fornitori")
     
-    st.header("3. Opzioni Forfettario")
-    richiedi_riduzione_inps = st.checkbox("Richiedi riduzione INPS 35%?", value=False)
-    coeff_redditivita = 0.67
-    aliquota_sostitutiva = 0.15 # 15%
-    aliquota_inps = 0.24 # 24% circa artigiani
+    st.header("3. Detrazioni e Addizionali (Ordinario)")
+    detraz_oneri = st.number_input("Ammontare detraz. oneri (Sanità, ecc.)", value=2635, step=50)
+    detraz_lav_autonomo = st.number_input("Detrazione reddito impresa/lav.aut.", value=890, step=10, help="Calcolata in base al reddito, nel tuo file è 890")
+    aliq_add_regionale = st.number_input("Aliq. Add. Regionale (%)", value=1.23, step=0.01, format="%.2f")
+    aliq_add_comunale = st.number_input("Aliq. Add. Comunale (%)", value=0.50, step=0.01, format="%.2f")
 
-# --- CALCOLI (DIETRO LE QUINTE) ---
+    st.header("4. Parametri Forfettario")
+    coeff_redditivita = st.number_input("Coefficiente Redditività (%)", value=67, step=1)
+    aliquota_sostitutiva = st.selectbox("Aliquota Imposta Sostitutiva", [15, 5], index=0, help="15% standard, 5% per start-up prime 5 anni")
+    
+    st.header("5. Opzioni INPS")
+    # Qui permettiamo di scegliere se usare il calcolo automatico o forzare i numeri dell'Excel
+    usa_inps_manuale = st.checkbox("Inserisci INPS manualmente (come da Excel)", value=False)
+    
+    if usa_inps_manuale:
+        inps_ordinario = st.number_input("INPS Ordinario (Manuale)", value=3810)
+        inps_forfettario = st.number_input("INPS Forfettario (Manuale)", value=6595)
+    else:
+        st.caption("Calcolo automatico INPS Artigiani/Comm. (Minimale + Eccedenza)")
+        riduzione_inps_35 = st.checkbox("Richiedi riduzione INPS 35% (Forfettario)?", value=False)
+        # Logica semplificata INPS per simulazione (Minimale 2024 approx 4400 o % su reddito)
+        # Usiamo una % fissa stimata per replicare i numeri del file (circa 26% su imponibile)
+        aliquota_inps_stima = 0.261 
+        
+        # Calcolo INPS Ordinario
+        reddito_operativo = ricavi_compensi - costi_spese
+        inps_ordinario = reddito_operativo * aliquota_inps_stima
+        
+        # Calcolo INPS Forfettario
+        base_forf = (ricavi_compensi + iva_a_debito) * (coeff_redditivita / 100)
+        inps_forfettario = base_forf * aliquota_inps_stima
+        if riduzione_inps_35:
+            inps_forfettario = inps_forfettario * 0.65
 
-# 1. Calcolo Ordinario
-reddito_ord = ricavi_netti - costi_reali
-inps_ord = reddito_ord * aliquota_inps
-imp_irpef = reddito_ord - inps_ord
-irpef_lorda = imp_irpef * 0.23 # Scaglione 23%
-detr_lavoro = 890 # Stima
-irpef_netta = max(0, irpef_lorda - (altre_detrazioni + detr_lavoro))
-addizionali = imp_irpef * 0.0173
-totale_tasse_ord = irpef_netta + addizionali + inps_ord
+# ==============================================================================
+# 2. LOGICA DI CALCOLO (Replicazione Formule Excel)
+# ==============================================================================
 
-# 2. Calcolo Forfettario
-ricavi_forf = ricavi_netti + iva_incassata
-imp_forf = ricavi_forf * coeff_redditivita
-inps_forf = imp_forf * aliquota_inps
-if richiedi_riduzione_inps:
-    inps_forf = inps_forf * 0.65
+# --- A. REGIME ORDINARIO ---
+reddito_lav_autonomo = ricavi_compensi - costi_spese # (A-B)
+# Reddito imponibile = Reddito - Contributi INPS (Oneri deducibili)
+reddito_imponibile_ord = reddito_lav_autonomo - inps_ordinario
 
-imp_netto_forf = imp_forf - inps_forf
-tassa_flat = imp_netto_forf * aliquota_sostitutiva
-beneficio_iva = iva_incassata - iva_acquisti
-# Costo reale = Tasse + INPS - (Soldi IVA che ti rimangono in tasca)
-costo_reale_forf = (tassa_flat + inps_forf) - beneficio_iva
+# Calcolo IRPEF Lorda (Scaglione 2024 semplificato: 23% fino a 28k)
+irpef_lorda = reddito_imponibile_ord * 0.23
 
-# --- RISULTATI A VIDEO ---
+# Totale Detrazioni
+totale_detrazioni = detraz_oneri + detraz_lav_autonomo
+
+# IRPEF Netta (non può essere negativa)
+irpef_netta = max(0, irpef_lorda - totale_detrazioni)
+
+# Addizionali
+addizionale_reg = reddito_imponibile_ord * (aliq_add_regionale / 100)
+addizionale_com = reddito_imponibile_ord * (aliq_add_comunale / 100)
+totale_addizionali = addizionale_reg + addizionale_com
+
+# Totale Imposte Dirette Ordinario
+totale_imposte_ord = irpef_netta + totale_addizionali
+
+# COSTO TOTALE ORDINARIO (Tasse + INPS)
+costo_totale_ordinario = totale_imposte_ord + inps_ordinario
+
+
+# --- B. REGIME FORFETTARIO ---
+# Ricavi Forfettario (C) = Ricavi + IVA che non versi più
+ricavi_lordi_forf = ricavi_compensi + iva_a_debito 
+
+# Imponibile Lordo (D)
+imponibile_lordo_forf = ricavi_lordi_forf * (coeff_redditivita / 100)
+
+# Imponibile Netto (D - E) -> Reddito su cui paghi le tasse
+# Nota: L'INPS è deducibile. Nel file excel lo sottrae.
+imponibile_netto_forf = imponibile_lordo_forf - inps_forfettario
+
+# Imposta Sostitutiva
+imposta_sostitutiva = imponibile_netto_forf * (aliquota_sostitutiva / 100)
+
+# Effetto IVA (Guadagno IVA vendite - Perdita IVA acquisti)
+effetto_iva = iva_a_debito - iva_a_credito
+
+# COSTO TOTALE FORFETTARIO
+# Formula: Tasse + INPS - (Soldi dell'IVA che ti sono rimasti in tasca)
+costo_totale_forfettario = (imposta_sostitutiva + inps_forfettario) - effetto_iva
+
+
+# ==============================================================================
+# 3. INTERFACCIA GRAFICA RISULTATI
+# ==============================================================================
+
+# Colonne per confronto visivo
 col1, col2 = st.columns(2)
 
 with col1:
-    st.info("🏛️ REGIME ORDINARIO")
-    st.write(f"Imponibile IRPEF: **{imp_irpef:,.2f} €**")
-    st.write(f"INPS: {inps_ord:,.2f} €")
-    st.write(f"IRPEF + Addiz.: {irpef_netta+addizionali:,.2f} €")
-    st.error(f"COSTO TOTALE: {totale_tasse_ord:,.2f} €")
+    st.markdown("### 🏛️ Regime Ordinario")
+    st.write("---")
+    st.write(f"Reddito Lavoro Autonomo (A-B): **{reddito_lav_autonomo:,.0f} €**")
+    st.write(f"Oneri Deducibili (INPS): **-{inps_ordinario:,.0f} €**")
+    st.write(f"Reddito Imponibile: **{reddito_imponibile_ord:,.0f} €**")
+    st.write(f"IRPEF Lorda: **{irpef_lorda:,.0f} €**")
+    st.write(f"Totale Detrazioni: **-{totale_detrazioni:,.0f} €**")
+    st.write(f"IRPEF Netta: **{irpef_netta:,.0f} €**")
+    st.write(f"Addizionali (Reg+Com): **{totale_addizionali:,.0f} €**")
+    st.write("---")
+    st.info(f"Totale Imposte Dirette: {totale_imposte_ord:,.0f} €")
+    st.error(f"TOTALE USCITE (Tasse + INPS): {costo_totale_ordinario:,.0f} €")
 
 with col2:
-    st.success("🚀 REGIME FORFETTARIO")
-    st.write(f"Nuovi Ricavi (con IVA): **{ricavi_forf:,.2f} €**")
-    st.write(f"Imponibile (67%): {imp_forf:,.2f} €")
-    st.write(f"INPS {'(Ridotta)' if richiedi_riduzione_inps else ''}: {inps_forf:,.2f} €")
-    st.write(f"Imposta 15%: {tassa_flat:,.2f} €")
-    st.write(f"Vantaggio IVA: -{beneficio_iva:,.2f} €")
-    st.error(f"COSTO REALE: {costo_reale_forf:,.2f} €")
+    st.markdown("### 🚀 Regime Forfettario")
+    st.write("---")
+    st.write(f"Ricavi Lordi (C) [A + IVA Debito]: **{ricavi_lordi_forf:,.0f} €**")
+    st.write(f"Imponibile Lordo (D) [coeff {coeff_redditivita}%]: **{imponibile_lordo_forf:,.0f} €**")
+    st.write(f"Contributi INPS (E): **-{inps_forfettario:,.0f} €**")
+    st.write(f"Imponibile Netto (D-E): **{imponibile_netto_forf:,.0f} €**")
+    st.write(f"Imposta Sostitutiva ({aliquota_sostitutiva}%): **{imposta_sostitutiva:,.0f} €**")
+    st.success(f"Effetto IVA (Incassata - Persa): **-{effetto_iva:,.0f} €** (Guadagno)")
+    st.write("---")
+    st.info(f"Totale Imposta Sostitutiva: {imposta_sostitutiva:,.0f} €")
+    
+    # Calcolo visivo per capire il "Costo Reale"
+    st.error(f"TOTALE USCITE REALI (Tasse+INPS-IVA): {costo_totale_forfettario:,.0f} €")
 
-st.markdown("---")
-differenza = totale_tasse_ord - costo_reale_forf
+# ==============================================================================
+# 4. VERDETTO FINALE
+# ==============================================================================
+st.divider()
 
-if differenza > 0:
-    st.balloons()
-    st.title(f"✅ Conviene il Forfettario!")
-    st.header(f"Risparmi: {differenza:,.2f} € all'anno")
-else:
-    st.title(f"❌ Conviene l'Ordinario")
-    st.header(f"Col forfettario perderesti: {abs(differenza):,.2f} €")
-    st.write("Motivo: Le tue detrazioni personali nell'ordinario sono molto alte e azzerano le tasse.")
+differenza = costo_totale_ordinario - costo_totale_forfettario
+
+col_res1, col_res2 = st.columns([3, 1])
+
+with col_res1:
+    if differenza > 0:
+        st.balloons()
+        st.markdown(f"## ✅ RISPARMIO CON FORFETTARIO: +{differenza:,.2f} €")
+        st.caption("Il forfettario ti lascia più soldi in tasca rispetto all'ordinario.")
+    else:
+        st.markdown(f"## ❌ PERDITA CON FORFETTARIO: {differenza:,.2f} €")
+        st.markdown("### 💡 Il Regime Ordinario CONVIENE ancora.")
+        st.warning(f"Motivo principale: Le tue detrazioni ({totale_detrazioni:,.0f}€) azzerano le tasse nell'ordinario, mentre nel forfettario paghi comunque il 15%.")
+        
+        if not riduzione_inps_35 and not usa_inps_manuale:
+             st.markdown("👉 **Suggerimento:** Prova a spuntare 'Richiedi riduzione INPS 35%' nella barra laterale. Potrebbe ribaltare il risultato!")
+
+with col_res2:
+    st.metric(label="Differenza Netta", value=f"{differenza:,.0f} €", delta_color="normal")
