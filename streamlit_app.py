@@ -1,20 +1,3 @@
-Certamente. Ho riscritto il codice espandendo tutti i campi per rispecchiare fedelmente ogni singola riga del tuo file Excel.
-
-Ora troverai le caselle specifiche per le Addizionali (Regionale/Comunale), la distinzione tra IVA a debito e credito, e le Detrazioni specifiche (Oneri diversi e Detrazione lavoro autonomo).
-
-Cosa devi fare:
-Vai su GitHub nel tuo file streamlit_app.py.
-
-Clicca l'icona della matita (Edit) in alto a destra.
-
-Cancella tutto il vecchio codice e incolla questo nuovo.
-
-Clicca Commit changes.
-
-Ecco il codice completo e dettagliato:
-
-Python
-
 import streamlit as st
 
 # Configurazione pagina
