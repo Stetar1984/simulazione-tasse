@@ -1,3 +1,14 @@
+import streamlit as st
+
+# Configurazione pagina
+st.set_page_config(page_title="Simulazione Fiscale", layout="wide")
+
+st.title("📊 Simulatore Fiscale: Ordinario vs Forfettario")
+st.markdown("Analisi basata sui dati dell'immagine caricata")
+
+# ==============================================================================
+# 1. INPUT DATI (Pre-compilati con i valori del tuo Excel)
+# ==============================================================================
 with st.sidebar:
     st.header("1. Dati Economici")
     ricavi_compensi = st.number_input("Ricavi (A)", value=33616)
